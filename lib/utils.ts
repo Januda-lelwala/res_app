@@ -23,6 +23,38 @@ export function categoryFromTypes(types?: string[]): string {
   return "Restaurant";
 }
 
+// Haversine distance in km between two lat/lng points
+export function distanceKm(
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Average walking speed ~5 km/h → 1 min per 83 m
+export function walkingMinutes(km: number): number {
+  return Math.max(1, Math.round((km / 5) * 60));
+}
+
+// Galle bounding box
+const GALLE_SW = { lat: 5.98, lng: 80.18 };
+const GALLE_NE = { lat: 6.10, lng: 80.28 };
+
+export function isInsideGalle(lat: number, lng: number): boolean {
+  return (
+    lat >= GALLE_SW.lat && lat <= GALLE_NE.lat &&
+    lng >= GALLE_SW.lng && lng <= GALLE_NE.lng
+  );
+}
+
 export function buildShareUrl(placeName: string, placeId?: string): string {
   const base =
     typeof window !== "undefined" ? window.location.origin : "https://discovergalle.com";

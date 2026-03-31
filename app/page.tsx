@@ -6,6 +6,7 @@ import MapView from "@/components/MapView";
 import PlaceCard from "@/components/PlaceCard";
 import { Recommendation } from "@/lib/types";
 import { priceLevelToLKR, categoryFromTypes } from "@/lib/utils";
+import { useLocation } from "@/lib/useLocation";
 
 const CATEGORIES = ["Restaurant", "Bar", "Cafe", "Street Food", "Rooftop"] as const;
 const BUDGETS = ["Under LKR 500", "LKR 500–1500", "LKR 1500–3000", "LKR 3000+"] as const;
@@ -21,6 +22,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const location = useLocation();
 
   const handleSearch = useCallback(
     async (query: string) => {
@@ -151,6 +153,44 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Location button */}
+        <div className="mt-4 flex justify-center">
+          {location.status === "idle" && (
+            <button
+              onClick={location.request}
+              className="flex items-center gap-2 text-xs text-white/60 hover:text-white border border-white/20 hover:border-white/40 px-4 py-2 rounded-full transition-all"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Use my location
+            </button>
+          )}
+          {location.status === "requesting" && (
+            <span className="text-xs text-white/40 flex items-center gap-2">
+              <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+              Getting location…
+            </span>
+          )}
+          {location.status === "in-galle" && (
+            <span className="text-xs text-blue-300 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+              Using your location · distances updated
+            </span>
+          )}
+          {location.status === "outside" && (
+            <span className="text-xs text-white/40">
+              You&apos;re outside Galle — distances shown from Galle Fort
+            </span>
+          )}
+          {(location.status === "denied" || location.status === "unavailable") && (
+            <span className="text-xs text-white/40">
+              Location unavailable — distances shown from Galle Fort
+            </span>
+          )}
+        </div>
+
         {error && (
           <p className="mt-4 text-center text-coral bg-coral/10 border border-coral/30 rounded-xl px-4 py-2 text-sm">
             {error}
@@ -167,6 +207,7 @@ export default function Home() {
               recommendations={recommendations}
               selectedPlace={selectedPlace}
               onMarkerClick={setSelectedPlace}
+              userLocation={location.status === "in-galle" ? location.coords : null}
             />
           </div>
 
@@ -191,6 +232,7 @@ export default function Home() {
                   place={place}
                   onSelect={setSelectedPlace}
                   isSelected={selectedPlace?.name === place.name}
+                  userLocation={location.status === "in-galle" ? location.coords : null}
                 />
               ))}
             </div>

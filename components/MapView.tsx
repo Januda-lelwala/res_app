@@ -3,19 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Recommendation } from "@/lib/types";
 
+interface LatLng { lat: number; lng: number }
+
 interface MapViewProps {
   recommendations: Recommendation[];
   selectedPlace: Recommendation | null;
   onMarkerClick: (place: Recommendation) => void;
+  userLocation?: LatLng | null;
 }
 
 const GALLE_FORT = { lat: 6.0328, lng: 80.217 };
 const GALLE_MAPS_URL = "https://www.google.com/maps/@6.0328,80.217,15z";
 
-export default function MapView({ recommendations, selectedPlace, onMarkerClick }: MapViewProps) {
+export default function MapView({ recommendations, selectedPlace, onMarkerClick, userLocation }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const userMarkerRef = useRef<google.maps.Marker | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
@@ -121,6 +125,32 @@ export default function MapView({ recommendations, selectedPlace, onMarkerClick 
     });
   }, [selectedPlace, recommendations]);
 
+  // User location dot — blue pulsing circle
+  useEffect(() => {
+    if (!mapInstanceRef.current || !userLocation) return;
+
+    // Remove previous dot
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setMap(null);
+    }
+
+    userMarkerRef.current = new google.maps.Marker({
+      position: userLocation,
+      map: mapInstanceRef.current,
+      title: "You are here",
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 9,
+        fillColor: "#4A90E2",
+        fillOpacity: 1,
+        strokeColor: "#ffffff",
+        strokeWeight: 2.5,
+      },
+    });
+
+    mapInstanceRef.current.panTo(userLocation);
+  }, [userLocation]);
+
   return (
     <div className="relative w-full h-[200px] rounded-2xl overflow-hidden border border-white/10">
       {loadError ? (
@@ -159,6 +189,12 @@ export default function MapView({ recommendations, selectedPlace, onMarkerClick 
             <span className="w-2 h-2 rounded-full bg-coral inline-block" />
             {recommendations.filter((p) => p.lat && p.lng).length} pinned
           </span>
+          {userLocation && (
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-400 inline-block" />
+              You
+            </span>
+          )}
         </div>
       )}
     </div>

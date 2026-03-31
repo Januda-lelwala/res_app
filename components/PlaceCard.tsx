@@ -1,11 +1,15 @@
 "use client";
 
 import { Recommendation } from "@/lib/types";
+import { distanceKm, walkingMinutes } from "@/lib/utils";
+
+interface UserLocation { lat: number; lng: number }
 
 interface PlaceCardProps {
   place: Recommendation;
   onSelect: (place: Recommendation) => void;
   isSelected: boolean;
+  userLocation?: UserLocation | null;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -16,7 +20,14 @@ const CATEGORY_COLORS: Record<string, string> = {
   Rooftop: "bg-sky-100 text-sky-700",
 };
 
-export default function PlaceCard({ place, onSelect, isSelected }: PlaceCardProps) {
+export default function PlaceCard({ place, onSelect, isSelected, userLocation }: PlaceCardProps) {
+  const distanceLabel = (() => {
+    if (userLocation && place.lat && place.lng) {
+      const mins = walkingMinutes(distanceKm(userLocation.lat, userLocation.lng, place.lat, place.lng));
+      return `${mins} min walk from you`;
+    }
+    return `${place.distanceFromFort} min walk from fort`;
+  })();
   return (
     <div
       onClick={() => onSelect(place)}
@@ -62,7 +73,7 @@ export default function PlaceCard({ place, onSelect, isSelected }: PlaceCardProp
             <span className="font-semibold text-ocean/70">{place.rating.toFixed(1)}</span>
           </span>
         )}
-        <span>{place.distanceFromFort} min walk</span>
+        <span>{distanceLabel}</span>
         <span>{place.priceRange}</span>
       </div>
 
