@@ -31,12 +31,23 @@ export default function PlaceCard({ place, onSelect, isSelected, userLocation }:
   return (
     <div
       onClick={() => onSelect(place)}
-      className={`bg-white rounded-2xl p-4 cursor-pointer transition-all border ${
+      className={`bg-white rounded-2xl overflow-hidden cursor-pointer transition-all border ${
         isSelected
           ? "border-coral ring-1 ring-coral shadow-md"
           : "border-sand/40 hover:border-coral/40 hover:shadow-sm"
       }`}
     >
+      {/* Photo */}
+      {place.photoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={place.photoUrl}
+          alt={place.name}
+          className="w-full h-36 object-cover"
+        />
+      )}
+
+      <div className="p-4">
       {/* Top row: name + open/closed */}
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="font-bold text-ocean text-sm leading-snug">{place.name}</h3>
@@ -91,6 +102,7 @@ export default function PlaceCard({ place, onSelect, isSelected, userLocation }:
       ) : (
         <div className="h-8" />
       )}
+      </div>
     </div>
   );
 }

@@ -22,6 +22,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [lastQuery, setLastQuery] = useState("");
   const location = useLocation();
 
   const handleSearch = useCallback(
@@ -73,6 +74,7 @@ export default function Home() {
                     (categoryFromTypes(match.types) as Recommendation["category"]) ?? rec.category,
                   address: match.address,
                   openNow: match.openNow,
+                  photoUrl: match.photoUrl,
                   lat: match.lat,
                   lng: match.lng,
                   googleMapsUrl: match.placeId
@@ -87,6 +89,7 @@ export default function Home() {
           })
         );
 
+        setLastQuery(query);
         setRecommendations(enriched);
         setHasSearched(true);
       } catch (err: unknown) {
@@ -124,7 +127,11 @@ export default function Home() {
             {CATEGORIES.map((c) => (
               <button
                 key={c}
-                onClick={() => setActiveCategory(activeCategory === c ? null : c)}
+                onClick={() => {
+                  const next = activeCategory === c ? null : c;
+                  setActiveCategory(next);
+                  if (hasSearched && lastQuery) handleSearch(lastQuery);
+                }}
                 className={`text-xs px-3.5 py-1.5 rounded-full font-medium border transition-all ${
                   activeCategory === c
                     ? "bg-coral border-coral text-white"
@@ -140,7 +147,11 @@ export default function Home() {
             {BUDGETS.map((b) => (
               <button
                 key={b}
-                onClick={() => setActiveBudget(activeBudget === b ? null : b)}
+                onClick={() => {
+                  const next = activeBudget === b ? null : b;
+                  setActiveBudget(next);
+                  if (hasSearched && lastQuery) handleSearch(lastQuery);
+                }}
                 className={`text-xs px-3.5 py-1.5 rounded-full font-medium border transition-all ${
                   activeBudget === b
                     ? "bg-coral border-coral text-white"
