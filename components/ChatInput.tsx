@@ -40,7 +40,7 @@ export default function ChatInput({ onSearch, isLoading }: ChatInputProps) {
             className="w-full px-5 pt-5 pb-14 text-base text-ocean leading-relaxed resize-none outline-none placeholder:text-ocean/35 bg-transparent"
           />
 
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 pb-3.5">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 pb-3.5 pointer-events-none">
             <span className="text-xs font-medium text-ocean/40 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-coral inline-block animate-pulse" />
               Powered by AI
@@ -49,7 +49,7 @@ export default function ChatInput({ onSearch, isLoading }: ChatInputProps) {
             <button
               type="submit"
               disabled={!value.trim() || isLoading}
-              className="flex items-center gap-2 bg-ocean hover:bg-ocean/90 disabled:opacity-40 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all"
+              className="flex items-center gap-2 bg-ocean hover:bg-ocean/90 disabled:opacity-40 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all pointer-events-auto"
             >
               {isLoading ? (
                 <>
