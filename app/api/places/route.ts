@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     const places: PlacesResult[] = (data.results || [])
-      .slice(0, 5)
+      .slice(0, 10)
       .map((p: Record<string, unknown>) => {
         const geometry = p.geometry as { location?: { lat: number; lng: number } } | undefined;
         const photos = p.photos as Array<{ photo_reference: string }> | undefined;
