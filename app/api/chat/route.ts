@@ -8,7 +8,7 @@ const SYSTEM_PROMPT = `You are a local expert on Galle, Sri Lanka. You help tour
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, filters } = await req.json();
+    const { message, filters, exclude } = await req.json();
 
     if (!message?.trim()) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
@@ -21,6 +21,9 @@ export async function POST(req: NextRequest) {
         .map(([k, v]) => `${k}: ${v}`)
         .join(", ");
       userMessage = `${message}\n\n[Active filters: ${activeFilters}]`;
+    }
+    if (Array.isArray(exclude) && exclude.length > 0) {
+      userMessage += `\n\n[Already shown — do NOT include these: ${exclude.join(", ")}]`;
     }
 
     const response = await client.messages.create({

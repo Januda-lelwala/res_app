@@ -20,6 +20,7 @@ export default function Home() {
   const [activeCategory, setActiveCategory] = useState<Category>(null);
   const [activeBudget, setActiveBudget] = useState<Budget>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [lastQuery, setLastQuery] = useState("");
@@ -102,6 +103,81 @@ export default function Home() {
     },
     [activeCategory, activeBudget]
   );
+
+  const handleLoadMore = useCallback(async () => {
+    if (!lastQuery || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setError(null);
+
+    try {
+      const filters: Record<string, string> = {};
+      if (activeCategory) filters.category = activeCategory;
+      if (activeBudget) filters.budget = activeBudget;
+
+      const exclude = recommendations.map((r) => r.name);
+
+      const chatRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: lastQuery, filters, exclude }),
+      });
+
+      if (!chatRes.ok) {
+        const err = await chatRes.json();
+        throw new Error(err.error ?? "Failed to get more recommendations");
+      }
+
+      const { recommendations: aiRecs }: { recommendations: Recommendation[] } =
+        await chatRes.json();
+
+      const enriched = await Promise.all(
+        aiRecs.map(async (rec) => {
+          try {
+            const placesRes = await fetch("/api/places", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ query: rec.name }),
+            });
+            const { places } = await placesRes.json();
+            const match = places?.[0];
+            if (match) {
+              return {
+                ...rec,
+                placeId: match.placeId,
+                rating: match.rating,
+                totalRatings: match.totalRatings,
+                priceRange:
+                  match.priceLevel !== undefined
+                    ? priceLevelToLKR(match.priceLevel)
+                    : rec.priceRange,
+                category:
+                  (categoryFromTypes(match.types) as Recommendation["category"]) ?? rec.category,
+                address: match.address,
+                openNow: match.openNow,
+                photoUrl: match.photoUrl,
+                lat: match.lat,
+                lng: match.lng,
+                googleMapsUrl: match.placeId
+                  ? `https://www.google.com/maps/place/?q=place_id:${match.placeId}`
+                  : undefined,
+              } as Recommendation;
+            }
+          } catch {
+            // fall through to AI-only data
+          }
+          return rec;
+        })
+      );
+
+      setRecommendations((prev) => [...prev, ...enriched]);
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error ? err.message : "Ayyo! Something went wrong, try again."
+      );
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [lastQuery, recommendations, activeCategory, activeBudget, isLoadingMore]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ocean to-ocean/80">
@@ -236,6 +312,7 @@ export default function Home() {
               <p className="text-sm">No places found — try rephrasing your search.</p>
             </div>
           ) : (
+            <>
             <div className="flex flex-col gap-3">
               {recommendations.map((place) => (
                 <PlaceCard
@@ -247,6 +324,22 @@ export default function Home() {
                 />
               ))}
             </div>
+
+            <button
+              onClick={handleLoadMore}
+              disabled={isLoadingMore}
+              className="mt-5 w-full py-3 rounded-2xl border border-white/20 text-white/70 hover:text-white hover:border-white/40 text-sm font-medium transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {isLoadingMore ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Finding more…
+                </>
+              ) : (
+                "Show more places →"
+              )}
+            </button>
+            </>
           )}
         </main>
       )}
