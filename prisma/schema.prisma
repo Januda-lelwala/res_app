@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Place {
+  id            String   @id @default(cuid())
+  placeId       String   @unique
+  name          String
+  rating        Float?
+  totalRatings  Int?
+  priceLevel    Int?
+  address       String?
+  openNow       Boolean?
+  photoUrl      String?
+  lat           Float?
+  lng           Float?
+  types         String   @default("[]")   // JSON array
+  searchAliases String   @default("[]")   // JSON array of query strings that resolved to this place
+  lastSyncedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
