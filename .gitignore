@@ -37,3 +37,6 @@ next-env.d.ts
 
 # local analytics (keep for dev, don't commit)
 search-analytics.json
+
+# generated place database
+data/places.json

@@ -1,10 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { logSearch } from "@/lib/analytics";
+import { readPlacesDb, priceLevelFilter } from "@/lib/places-db";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are a local expert on Galle, Sri Lanka. You help tourists and locals find the perfect place to eat, drink, or hang out based on their budget in LKR, their vibe preference, and their proximity to Galle Fort. Always respond in JSON format with an array of exactly 10 recommendations, each containing: name, category (one of: Restaurant, Bar, Cafe, Street Food, Rooftop), priceRange (in LKR as a string like "LKR 500–1,500"), vibeDescription (one sentence), distanceFromFort (walking minutes as a number), and whyThisPlace (one sentence personalized reason). Be specific to Galle — reference real areas like Galle Fort, Unawatuna Road, Closenberg, Light House Street. Return ONLY valid JSON — no markdown, no explanation, just the JSON array.`;
+const SYSTEM_PROMPT = `You are a local expert on Galle, Sri Lanka. You are given a list of real restaurants, cafes, and bars. Select the best matches for the user's request and return a JSON array (up to 10 items) where each item has:
+- name: exact place name from the list
+- vibeDescription: one vivid sentence describing the atmosphere
+- whyThisPlace: one sentence explaining why this matches the user's specific request
+
+Consider the user's budget, desired vibe, and any mention of food type or occasion. Rank by how well they match. Return ONLY valid JSON array, no markdown.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,21 +20,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
 
-    let userMessage = message;
-    if (filters && Object.values(filters).some(Boolean)) {
-      const activeFilters = Object.entries(filters)
-        .filter(([, v]) => v)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(", ");
-      userMessage = `${message}\n\n[Active filters: ${activeFilters}]`;
+    const db = await readPlacesDb();
+
+    if (db.places.length === 0) {
+      return NextResponse.json(
+        { error: "Place database is empty. Run /api/sync-places first." },
+        { status: 503 }
+      );
+    }
+
+    let candidates = db.places;
+
+    if (filters?.category) {
+      candidates = candidates.filter((p) => p.category === filters.category);
+    }
+    if (filters?.budget) {
+      candidates = candidates.filter((p) => priceLevelFilter(p.priceLevel, filters.budget));
     }
     if (Array.isArray(exclude) && exclude.length > 0) {
-      userMessage += `\n\n[Already shown — do NOT include these: ${exclude.join(", ")}]`;
+      const excludeSet = new Set(exclude.map((n: string) => n.toLowerCase()));
+      candidates = candidates.filter((p) => !excludeSet.has(p.name.toLowerCase()));
     }
+
+    // Top 30 by rating as context for Claude
+    candidates = [...candidates]
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+      .slice(0, 30);
+
+    if (candidates.length === 0) {
+      return NextResponse.json({ recommendations: [] });
+    }
+
+    const candidateList = candidates
+      .map(
+        (p) =>
+          `- ${p.name} | ${p.category} | ${p.priceRange} | Rating: ${p.rating ?? "N/A"} (${p.totalRatings ?? 0} reviews) | ${p.openNow === false ? "Closed" : "Open"} | ${p.address ?? ""}`
+      )
+      .join("\n");
+
+    const activeFilters = [
+      filters?.category ? `category: ${filters.category}` : null,
+      filters?.budget ? `budget: ${filters.budget}` : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const userMessage = `User request: ${message}${activeFilters ? `\nFilters: ${activeFilters}` : ""}
+
+Available places:
+${candidateList}`;
 
     const response = await client.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 4096,
+      max_tokens: 2048,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: userMessage }],
     });
@@ -36,14 +80,13 @@ export async function POST(req: NextRequest) {
     const rawText =
       response.content[0].type === "text" ? response.content[0].text : "";
 
-    let recommendations;
+    let aiSelections: Array<{ name: string; vibeDescription: string; whyThisPlace: string }>;
     try {
-      // Strip any accidental markdown fences
-      const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
-      recommendations = JSON.parse(cleaned);
-      if (!Array.isArray(recommendations)) {
-        recommendations = [recommendations];
-      }
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/, "");
+      aiSelections = JSON.parse(cleaned);
+      if (!Array.isArray(aiSelections)) aiSelections = [aiSelections];
     } catch {
       return NextResponse.json(
         { error: "Ayyo! The AI got confused. Please try again." },
@@ -51,10 +94,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Log the query asynchronously
-    logSearch(message, recommendations.length).catch(() => {});
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
-    return NextResponse.json({ recommendations });
+    const recommendations = await Promise.all(
+      aiSelections.map(async (sel) => {
+        const record =
+          candidates.find((p) => p.name.toLowerCase() === sel.name.toLowerCase()) ??
+          candidates.find((p) =>
+            p.name.toLowerCase().includes(sel.name.toLowerCase().slice(0, 8))
+          );
+
+        if (!record) return null;
+
+        let photoUrl: string | undefined;
+        if (record.photoReference && apiKey) {
+          photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${record.photoReference}&key=${apiKey}`;
+        }
+
+        return {
+          name: record.name,
+          category: record.category,
+          priceRange: record.priceRange,
+          vibeDescription: sel.vibeDescription,
+          distanceFromFort: record.distanceFromFort,
+          whyThisPlace: sel.whyThisPlace,
+          placeId: record.placeId,
+          rating: record.rating,
+          totalRatings: record.totalRatings,
+          address: record.address,
+          openNow: record.openNow,
+          photoUrl,
+          lat: record.lat,
+          lng: record.lng,
+          googleMapsUrl: record.placeId
+            ? `https://www.google.com/maps/place/?q=place_id:${record.placeId}`
+            : undefined,
+        };
+      })
+    );
+
+    const validRecs = recommendations.filter(Boolean);
+    logSearch(message, validRecs.length).catch(() => {});
+
+    return NextResponse.json({ recommendations: validRecs });
   } catch (err: unknown) {
     console.error("Chat API error:", err);
     return NextResponse.json(

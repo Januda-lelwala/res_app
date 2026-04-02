@@ -5,7 +5,6 @@ import ChatInput from "@/components/ChatInput";
 import MapView from "@/components/MapView";
 import PlaceCard from "@/components/PlaceCard";
 import { Recommendation } from "@/lib/types";
-import { priceLevelToLKR, categoryFromTypes } from "@/lib/utils";
 import { useLocation } from "@/lib/useLocation";
 
 const CATEGORIES = ["Restaurant", "Bar", "Cafe", "Street Food", "Rooftop"] as const;
@@ -51,47 +50,8 @@ export default function Home() {
         const { recommendations: aiRecs }: { recommendations: Recommendation[] } =
           await chatRes.json();
 
-        const enriched = await Promise.all(
-          aiRecs.map(async (rec) => {
-            try {
-              const placesRes = await fetch("/api/places", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query: rec.name }),
-              });
-              const { places } = await placesRes.json();
-              const match = places?.[0];
-              if (match) {
-                return {
-                  ...rec,
-                  placeId: match.placeId,
-                  rating: match.rating,
-                  totalRatings: match.totalRatings,
-                  priceRange:
-                    match.priceLevel !== undefined
-                      ? priceLevelToLKR(match.priceLevel)
-                      : rec.priceRange,
-                  category:
-                    (categoryFromTypes(match.types) as Recommendation["category"]) ?? rec.category,
-                  address: match.address,
-                  openNow: match.openNow,
-                  photoUrl: match.photoUrl,
-                  lat: match.lat,
-                  lng: match.lng,
-                  googleMapsUrl: match.placeId
-                    ? `https://www.google.com/maps/place/?q=place_id:${match.placeId}`
-                    : undefined,
-                } as Recommendation;
-              }
-            } catch {
-              // fall through to AI-only data
-            }
-            return rec;
-          })
-        );
-
         setLastQuery(query);
-        setRecommendations(enriched);
+        setRecommendations(aiRecs);
         setHasSearched(true);
       } catch (err: unknown) {
         setError(
@@ -130,46 +90,7 @@ export default function Home() {
       const { recommendations: aiRecs }: { recommendations: Recommendation[] } =
         await chatRes.json();
 
-      const enriched = await Promise.all(
-        aiRecs.map(async (rec) => {
-          try {
-            const placesRes = await fetch("/api/places", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ query: rec.name }),
-            });
-            const { places } = await placesRes.json();
-            const match = places?.[0];
-            if (match) {
-              return {
-                ...rec,
-                placeId: match.placeId,
-                rating: match.rating,
-                totalRatings: match.totalRatings,
-                priceRange:
-                  match.priceLevel !== undefined
-                    ? priceLevelToLKR(match.priceLevel)
-                    : rec.priceRange,
-                category:
-                  (categoryFromTypes(match.types) as Recommendation["category"]) ?? rec.category,
-                address: match.address,
-                openNow: match.openNow,
-                photoUrl: match.photoUrl,
-                lat: match.lat,
-                lng: match.lng,
-                googleMapsUrl: match.placeId
-                  ? `https://www.google.com/maps/place/?q=place_id:${match.placeId}`
-                  : undefined,
-              } as Recommendation;
-            }
-          } catch {
-            // fall through to AI-only data
-          }
-          return rec;
-        })
-      );
-
-      setRecommendations((prev) => [...prev, ...enriched]);
+      setRecommendations((prev) => [...prev, ...aiRecs]);
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Ayyo! Something went wrong, try again."
