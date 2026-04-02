@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { logSearch } from "@/lib/analytics";
-import { readPlacesDb, priceLevelFilter } from "@/lib/places-db";
+import { readPlacesDb, priceLevelFilter, syncPlaces } from "@/lib/places-db";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -23,10 +23,14 @@ export async function POST(req: NextRequest) {
     const db = await readPlacesDb();
 
     if (db.places.length === 0) {
-      return NextResponse.json(
-        { error: "Place database is empty. Run /api/sync-places first." },
-        { status: 503 }
-      );
+      const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+      if (!apiKey) {
+        return NextResponse.json({ error: "GOOGLE_PLACES_API_KEY not set" }, { status: 500 });
+      }
+      console.log("DB empty — auto-syncing places from Google...");
+      await syncPlaces(apiKey);
+      const fresh = await readPlacesDb();
+      db.places = fresh.places;
     }
 
     let candidates = db.places;

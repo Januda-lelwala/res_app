@@ -53,6 +53,61 @@ export function priceLevelFilter(priceLevel: number | undefined, budget: string)
   }
 }
 
+const SEARCH_RADIUS = 3000;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchNearbyPage(
+  apiKey: string,
+  type: string,
+  pageToken?: string
+): Promise<{ results: Record<string, unknown>[]; nextPageToken?: string }> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
+  url.searchParams.set("location", `${GALLE_FORT.lat},${GALLE_FORT.lng}`);
+  url.searchParams.set("radius", String(SEARCH_RADIUS));
+  url.searchParams.set("type", type);
+  url.searchParams.set("key", apiKey);
+  if (pageToken) url.searchParams.set("pagetoken", pageToken);
+
+  const res = await fetch(url.toString());
+  const data = await res.json();
+
+  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+    console.error("Nearby Search error:", data.status, data.error_message);
+  }
+
+  return { results: data.results ?? [], nextPageToken: data.next_page_token };
+}
+
+export async function syncPlaces(apiKey: string): Promise<{ count: number; lastSynced: string }> {
+  const types = ["restaurant", "cafe", "bar"];
+  const seen = new Map<string, Record<string, unknown>>();
+
+  for (const type of types) {
+    let pageToken: string | undefined;
+    let page = 0;
+
+    do {
+      if (page > 0) await sleep(2500);
+      const { results, nextPageToken } = await fetchNearbyPage(apiKey, type, pageToken);
+      for (const place of results) {
+        const id = place.place_id as string;
+        if (id && !seen.has(id)) seen.set(id, place);
+      }
+      pageToken = nextPageToken;
+      page++;
+    } while (pageToken && page < 3);
+  }
+
+  const places = Array.from(seen.values()).map(mapGooglePlaceToRecord);
+  const db = { lastSynced: new Date().toISOString(), places };
+  await writePlacesDb(db);
+
+  return { count: places.length, lastSynced: db.lastSynced };
+}
+
 export function mapGooglePlaceToRecord(p: Record<string, unknown>): PlaceRecord {
   const geometry = p.geometry as { location?: { lat: number; lng: number } } | undefined;
   const lat = geometry?.location?.lat;
