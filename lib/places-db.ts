@@ -1,5 +1,5 @@
 import { distanceKm, walkingMinutes, priceLevelToLKR, categoryFromTypes } from "./utils";
-import { supabase } from "./supabase";
+import { getSupabase } from "./supabase";
 
 const GALLE_FORT = { lat: 6.0328, lng: 80.217 };
 const SEARCH_RADIUS = 3000;
@@ -92,8 +92,15 @@ function recordToRow(r: PlaceRecord): PlaceRow {
 
 // ── DB helpers ───────────────────────────────────────────────────────────────
 
+const SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+function isStale(lastSynced: string | null): boolean {
+  if (!lastSynced) return true;
+  return Date.now() - new Date(lastSynced).getTime() > SYNC_INTERVAL_MS;
+}
+
 export async function readPlacesDb(): Promise<PlacesDb> {
-  const { data, error } = await supabase.from("places").select("*");
+  const { data, error } = await getSupabase().from("places").select("*");
   if (error) throw new Error(`Supabase read failed: ${error.message}`);
 
   const places = (data as PlaceRow[]).map(rowToRecord);
@@ -101,6 +108,15 @@ export async function readPlacesDb(): Promise<PlacesDb> {
     places.length > 0
       ? places.reduce((max, p) => (p.lastSynced > max ? p.lastSynced : max), places[0].lastSynced)
       : null;
+
+  // Background re-sync if data is stale — doesn't block the current request
+  if (isStale(lastSynced)) {
+    const apiKey = process.env.GOOGLE_PLACES_API_KEY;
+    if (apiKey) {
+      console.log("Places data stale — triggering background sync...");
+      syncPlaces(apiKey).catch((err) => console.error("Background sync failed:", err));
+    }
+  }
 
   return { lastSynced, places };
 }
@@ -199,7 +215,7 @@ export async function syncPlaces(apiKey: string): Promise<{ count: number; lastS
   const records = Array.from(seen.values()).map(mapGooglePlaceToRecord);
   const rows = records.map(recordToRow);
 
-  const { error } = await supabase
+  const { error } = await getSupabase()
     .from("places")
     .upsert(rows, { onConflict: "place_id" });
 
