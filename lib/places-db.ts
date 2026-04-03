@@ -1,8 +1,36 @@
 import { distanceKm, walkingMinutes, priceLevelToLKR, categoryFromTypes } from "./utils";
 import { getSupabase } from "./supabase";
 
-const GALLE_FORT = { lat: 6.0328, lng: 80.217 };
-const SEARCH_RADIUS = 3000;
+// Centre used for the Nearby Search API call (500 m catches the whole fort)
+const GALLE_FORT = { lat: 6.0285, lng: 80.2175 };
+const SEARCH_RADIUS = 550;
+
+// Approximate polygon of the Galle Fort walls (clockwise from the Land Gate)
+const FORT_POLYGON: Array<{ lat: number; lng: number }> = [
+  { lat: 6.0338, lng: 80.2165 }, // Star Bastion (north / Land Gate area)
+  { lat: 6.0325, lng: 80.2230 }, // Sun Bastion (northeast)
+  { lat: 6.0268, lng: 80.2233 }, // Point Utrecht (east)
+  { lat: 6.0242, lng: 80.2210 }, // Aurora Bastion (southeast)
+  { lat: 6.0237, lng: 80.2173 }, // Neptune Bastion (south)
+  { lat: 6.0247, lng: 80.2138 }, // Triton Bastion (southwest)
+  { lat: 6.0283, lng: 80.2122 }, // Aeolus / Flag Rock (west)
+  { lat: 6.0315, lng: 80.2130 }, // Clippenburg Bastion (northwest)
+];
+
+/** Ray-casting point-in-polygon test. */
+function isInsideFort(lat: number, lng: number): boolean {
+  const poly = FORT_POLYGON;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].lng, yi = poly[i].lat;
+    const xj = poly[j].lng, yj = poly[j].lat;
+    const intersect =
+      yi > lat !== yj > lat &&
+      lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -212,7 +240,9 @@ export async function syncPlaces(apiKey: string): Promise<{ count: number; lastS
     } while (pageToken && page < 3);
   }
 
-  const records = Array.from(seen.values()).map(mapGooglePlaceToRecord);
+  const records = Array.from(seen.values())
+    .map(mapGooglePlaceToRecord)
+    .filter((r) => r.lat != null && r.lng != null && isInsideFort(r.lat, r.lng));
   const rows = records.map(recordToRow);
 
   const { error } = await getSupabase()
