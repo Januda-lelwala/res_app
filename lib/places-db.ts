@@ -170,13 +170,13 @@ function sleep(ms: number) {
 
 async function fetchNearbyPage(
   apiKey: string,
-  type: string,
+  type: string | null,
   pageToken?: string
 ): Promise<{ results: Record<string, unknown>[]; nextPageToken?: string }> {
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
   url.searchParams.set("location", `${GALLE_FORT.lat},${GALLE_FORT.lng}`);
   url.searchParams.set("radius", String(SEARCH_RADIUS));
-  url.searchParams.set("type", type);
+  if (type) url.searchParams.set("type", type);
   url.searchParams.set("key", apiKey);
   if (pageToken) url.searchParams.set("pagetoken", pageToken);
 
@@ -221,10 +221,23 @@ export function mapGooglePlaceToRecord(p: Record<string, unknown>): PlaceRecord 
 }
 
 export async function syncPlaces(apiKey: string): Promise<{ count: number; lastSynced: string }> {
-  const types = ["restaurant", "cafe", "bar", "lodging"];
+  // null = no type filter (returns all establishments); specific types catch
+  // categories the broad search can under-represent due to API result caps.
+  const searches: Array<string | null> = [
+    null,
+    "restaurant",
+    "cafe",
+    "bar",
+    "lodging",
+    "store",
+    "tourist_attraction",
+    "museum",
+    "art_gallery",
+    "spa",
+  ];
   const seen = new Map<string, Record<string, unknown>>();
 
-  for (const type of types) {
+  for (const type of searches) {
     let pageToken: string | undefined;
     let page = 0;
 
