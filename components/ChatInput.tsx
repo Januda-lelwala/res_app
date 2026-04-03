@@ -29,7 +29,7 @@ export default function ChatInput({ onSearch, isLoading }: ChatInputProps) {
   return (
     <div className="w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit}>
-        <div className="relative rounded-2xl shadow-2xl bg-white border border-sand/40 overflow-hidden">
+        <div className="relative rounded-2xl shadow-xl shadow-sky/20 bg-white/80 backdrop-blur-md border border-sky/30 overflow-hidden">
           <textarea
             ref={textareaRef}
             value={value}
@@ -37,7 +37,7 @@ export default function ChatInput({ onSearch, isLoading }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             placeholder={`Try: "seafood dinner under LKR 1500 near the fort" or "chill bar for sunset, not too crowded"`}
             rows={3}
-            className="w-full px-5 pt-5 pb-14 text-base text-ocean leading-relaxed resize-none outline-none placeholder:text-ocean/35 bg-transparent"
+            className="w-full px-5 pt-5 pb-14 text-base text-ocean leading-relaxed resize-none outline-none placeholder:text-ocean/30 bg-transparent"
           />
 
           <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 pb-3.5 pointer-events-none">
@@ -49,7 +49,7 @@ export default function ChatInput({ onSearch, isLoading }: ChatInputProps) {
             <button
               type="submit"
               disabled={!value.trim() || isLoading}
-              className="flex items-center gap-2 bg-ocean hover:bg-ocean/90 disabled:opacity-40 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all pointer-events-auto"
+              className="flex items-center gap-2 bg-ocean hover:bg-ocean/90 disabled:opacity-40 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-all pointer-events-auto shadow-md shadow-ocean/20"
             >
               {isLoading ? (
                 <>

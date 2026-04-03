@@ -17,10 +17,22 @@ export function priceLevelToLKR(priceLevel?: number): string {
 
 export function categoryFromTypes(types?: string[]): string {
   if (!types) return "Restaurant";
+  if (types.includes("lodging")) return "Hotel";
   if (types.includes("bar") || types.includes("night_club")) return "Bar";
   if (types.includes("cafe")) return "Cafe";
   if (types.includes("meal_takeaway") || types.includes("food")) return "Street Food";
-  return "Restaurant";
+  if (types.includes("museum")) return "Museum";
+  if (types.includes("art_gallery")) return "Art Gallery";
+  if (types.includes("spa")) return "Spa";
+  if (
+    types.includes("store") ||
+    types.includes("clothing_store") ||
+    types.includes("jewelry_store") ||
+    types.includes("book_store") ||
+    types.includes("shopping_mall")
+  ) return "Shop";
+  if (types.includes("tourist_attraction") || types.includes("point_of_interest")) return "Attraction";
+  return "Other";
 }
 
 // Haversine distance in km between two lat/lng points
