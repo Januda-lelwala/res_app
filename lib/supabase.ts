@@ -9,7 +9,12 @@ export function getSupabase(): SupabaseClient {
     if (!url || !key) {
       throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
     }
-    _client = createClient(url, key);
+    _client = createClient(url, key, {
+      global: {
+        fetch: (input: RequestInfo | URL, init: RequestInit = {}) =>
+          fetch(input, { ...init, cache: "no-store" }),
+      },
+    });
   }
   return _client;
 }

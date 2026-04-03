@@ -17,6 +17,7 @@ export function priceLevelToLKR(priceLevel?: number): string {
 
 export function categoryFromTypes(types?: string[]): string {
   if (!types) return "Restaurant";
+  if (types.includes("lodging")) return "Hotel";
   if (types.includes("bar") || types.includes("night_club")) return "Bar";
   if (types.includes("cafe")) return "Cafe";
   if (types.includes("meal_takeaway") || types.includes("food")) return "Street Food";

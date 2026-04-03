@@ -193,7 +193,7 @@ export function mapGooglePlaceToRecord(p: Record<string, unknown>): PlaceRecord 
 }
 
 export async function syncPlaces(apiKey: string): Promise<{ count: number; lastSynced: string }> {
-  const types = ["restaurant", "cafe", "bar"];
+  const types = ["restaurant", "cafe", "bar", "lodging"];
   const seen = new Map<string, Record<string, unknown>>();
 
   for (const type of types) {
