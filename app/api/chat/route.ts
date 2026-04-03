@@ -10,6 +10,11 @@ const SYSTEM_PROMPT = `You are a local expert on Galle, Sri Lanka. You are given
 - vibeDescription: one vivid sentence describing the atmosphere
 - whyThisPlace: one sentence explaining why this matches the user's specific request
 
+Important rules:
+- If a place has "Notes:", use those notes as the basis for vibeDescription — do not invent an atmosphere that contradicts them.
+- If a place has "Price info:", use that to inform your understanding of its price range.
+- If no notes are provided, use the category, rating, and name to craft a reasonable description.
+
 Consider the user's budget, desired vibe, and any mention of food type or occasion. Rank by how well they match. Return ONLY valid JSON array, no markdown.`;
 
 export async function POST(req: NextRequest) {
@@ -56,10 +61,14 @@ export async function POST(req: NextRequest) {
     }
 
     const candidateList = candidates
-      .map(
-        (p) =>
-          `- ${p.name} | ${p.category} | ${p.priceRange} | Rating: ${p.rating ?? "N/A"} (${p.totalRatings ?? 0} reviews) | ${p.openNow === false ? "Closed" : "Open"} | ${p.address ?? ""}`
-      )
+      .map((p) => {
+        const lines = [
+          `- ${p.name} | ${p.category} | Rating: ${p.rating ?? "N/A"} (${p.totalRatings ?? 0} reviews) | ${p.openNow === false ? "Closed" : "Open"} | ${p.address ?? ""}`,
+        ];
+        if (p.ownerNotes) lines.push(`  Notes: ${p.ownerNotes}`);
+        if (p.ownerPrice) lines.push(`  Price info: ${p.ownerPrice}`);
+        return lines.join("\n");
+      })
       .join("\n");
 
     const activeFilters = [

@@ -2,7 +2,7 @@ import { distanceKm, walkingMinutes, priceLevelToLKR, categoryFromTypes } from "
 import { supabase } from "./supabase";
 
 const GALLE_FORT = { lat: 6.0328, lng: 80.217 };
-const SEARCH_RADIUS = 3000;
+const SEARCH_RADIUS = 600; // ~Fort walls only
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +22,8 @@ export interface PlaceRecord {
   types: string[];
   photoReference?: string;
   lastSynced: string;
+  ownerNotes?: string;
+  ownerPrice?: string;
 }
 
 export interface PlacesDb {
@@ -46,6 +48,8 @@ interface PlaceRow {
   types: string[];
   photo_reference: string | null;
   last_synced: string;
+  owner_notes: string | null;
+  owner_price: string | null;
 }
 
 // ── Row ↔ Record mappers ─────────────────────────────────────────────────────
@@ -67,6 +71,8 @@ function rowToRecord(row: PlaceRow): PlaceRecord {
     types: row.types,
     photoReference: row.photo_reference ?? undefined,
     lastSynced: row.last_synced,
+    ownerNotes: row.owner_notes ?? undefined,
+    ownerPrice: row.owner_price ?? undefined,
   };
 }
 
@@ -87,6 +93,8 @@ function recordToRow(r: PlaceRecord): PlaceRow {
     types: r.types,
     photo_reference: r.photoReference ?? null,
     last_synced: r.lastSynced,
+    owner_notes: r.ownerNotes ?? null,
+    owner_price: r.ownerPrice ?? null,
   };
 }
 
