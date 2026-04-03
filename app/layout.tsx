@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Discover Galle — AI-Powered Local Discovery",
+  title: "Explore Galle Fort — AI-Powered Local Discovery",
   description:
     "Find the best restaurants, bars, cafes, and street food in Galle, Sri Lanka. Powered by AI.",
 };

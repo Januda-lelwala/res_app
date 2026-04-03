@@ -14,6 +14,8 @@ const config: Config = {
         ocean: "#0F3460",
         sand: "#E8D5B7",
         coral: "#FF6B6B",
+        sky: "#7DD3FC",
+        seafoam: "#BAE6FD",
       },
     },
   },
