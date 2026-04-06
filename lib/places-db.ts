@@ -267,3 +267,127 @@ export async function syncPlaces(apiKey: string): Promise<{ count: number; lastS
   const lastSynced = new Date().toISOString();
   return { count: records.length, lastSynced };
 }
+
+// ── Place Photos ─────────────────────────────────────────────────────────────
+
+function buildPhotoUrl(ref: string, apiKey: string, maxWidth = 800): string {
+  return `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxWidth}&photoreference=${encodeURIComponent(ref)}&key=${apiKey}`;
+}
+
+export async function getPlacePhotos(
+  placeIds: string[],
+  apiKey: string,
+  maxPerPlace = 5
+): Promise<Map<string, string[]>> {
+  const { data, error } = await getSupabase()
+    .from("place_photos")
+    .select("place_id, photo_reference, display_order")
+    .in("place_id", placeIds)
+    .order("display_order", { ascending: true });
+
+  const result = new Map<string, string[]>();
+
+  if (error || !data) return result;
+
+  for (const row of data) {
+    const existing = result.get(row.place_id) ?? [];
+    if (existing.length < maxPerPlace) {
+      existing.push(buildPhotoUrl(row.photo_reference, apiKey));
+      result.set(row.place_id, existing);
+    }
+  }
+
+  // Lazy background fetch for places with no photos
+  const missing = placeIds.filter((id) => !result.has(id)).slice(0, 3);
+  if (missing.length > 0) {
+    syncPlacePhotos(apiKey, { placeIds: missing, maxPhotosPerPlace: 5 }).catch(() => {});
+  }
+
+  return result;
+}
+
+export interface SyncPhotosOptions {
+  placeIds?: string[];
+  maxPhotosPerPlace?: number;
+  concurrency?: number;
+  delayMs?: number;
+}
+
+export async function syncPlacePhotos(
+  apiKey: string,
+  options: SyncPhotosOptions = {}
+): Promise<{ synced: number; failed: string[]; skipped: number }> {
+  const { maxPhotosPerPlace = 10, concurrency = 3, delayMs = 200 } = options;
+
+  let targetIds: string[];
+  if (options.placeIds && options.placeIds.length > 0) {
+    targetIds = options.placeIds;
+  } else {
+    const { data } = await getSupabase().from("places").select("place_id");
+    targetIds = (data ?? []).map((r: { place_id: string }) => r.place_id);
+  }
+
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  let synced = 0;
+  let skipped = 0;
+  const failed: string[] = [];
+
+  async function fetchAndStore(placeId: string): Promise<void> {
+    // Check staleness
+    const { data: existing } = await getSupabase()
+      .from("place_photos")
+      .select("fetched_at")
+      .eq("place_id", placeId)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      const ageMs = Date.now() - new Date(existing[0].fetched_at).getTime();
+      if (ageMs < SEVEN_DAYS_MS) {
+        skipped++;
+        return;
+      }
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=photos,place_id&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      failed.push(placeId);
+      return;
+    }
+
+    const json = await res.json();
+    if (json.status !== "OK" || !json.result?.photos) {
+      if (json.status !== "OK") failed.push(placeId);
+      return;
+    }
+
+    const photos: Array<{ photo_reference: string; width: number; height: number }> =
+      json.result.photos.slice(0, maxPhotosPerPlace);
+
+    const rows = photos.map((p, i) => ({
+      place_id: placeId,
+      photo_reference: p.photo_reference,
+      width: p.width,
+      height: p.height,
+      display_order: i,
+      fetched_at: new Date().toISOString(),
+    }));
+
+    await getSupabase()
+      .from("place_photos")
+      .upsert(rows, { onConflict: "place_id,photo_reference" });
+
+    synced++;
+  }
+
+  // Process in batches
+  for (let i = 0; i < targetIds.length; i += concurrency) {
+    const chunk = targetIds.slice(i, i + concurrency);
+    await Promise.all(chunk.map(fetchAndStore));
+    if (i + concurrency < targetIds.length) {
+      await sleep(delayMs);
+    }
+  }
+
+  return { synced, failed, skipped };
+}

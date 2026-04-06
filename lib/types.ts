@@ -1,3 +1,13 @@
+export interface PlacePhoto {
+  id: number;
+  placeId: string;
+  photoReference: string;
+  width?: number;
+  height?: number;
+  displayOrder: number;
+  fetchedAt: string;
+}
+
 export interface Recommendation {
   name: string;
   category: "Restaurant" | "Bar" | "Cafe" | "Street Food" | "Rooftop";
@@ -12,6 +22,7 @@ export interface Recommendation {
   address?: string;
   openNow?: boolean;
   photoUrl?: string;
+  photoUrls?: string[];
   googleMapsUrl?: string;
   lat?: number;
   lng?: number;
