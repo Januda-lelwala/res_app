@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Recommendation } from "@/lib/types";
 import { distanceKm, walkingMinutes } from "@/lib/utils";
 
@@ -29,14 +28,6 @@ export default function PlaceCard({ place, onSelect, isSelected, userLocation }:
     }
     return `${place.distanceFromFort} min walk from fort`;
   })();
-
-  const photos =
-    (place.photoUrls && place.photoUrls.length > 0)
-      ? place.photoUrls
-      : place.photoUrl
-        ? [place.photoUrl]
-        : [];
-  const [activeIdx, setActiveIdx] = useState(0);
   return (
     <div
       onClick={() => onSelect(place)}
@@ -46,44 +37,14 @@ export default function PlaceCard({ place, onSelect, isSelected, userLocation }:
           : "border-sand/40 hover:border-coral/40 hover:shadow-sm"
       }`}
     >
-      {/* Photo gallery */}
-      {photos.length > 0 && (
-        <div className="relative w-full h-36 overflow-hidden bg-sand/20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photos[activeIdx]}
-            alt={`${place.name} photo ${activeIdx + 1}`}
-            className="w-full h-full object-cover"
-          />
-          {photos.length > 1 && (
-            <>
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveIdx((idx) => (idx - 1 + photos.length) % photos.length); }}
-                className="absolute left-1.5 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs transition-colors"
-                aria-label="Previous photo"
-              >
-                ‹
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setActiveIdx((idx) => (idx + 1) % photos.length); }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs transition-colors"
-                aria-label="Next photo"
-              >
-                ›
-              </button>
-              <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-1">
-                {photos.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={(e) => { e.stopPropagation(); setActiveIdx(i); }}
-                    className={`w-1.5 h-1.5 rounded-full transition-colors ${i === activeIdx ? "bg-white" : "bg-white/40"}`}
-                    aria-label={`Photo ${i + 1}`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+      {/* Photo */}
+      {place.photoUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={place.photoUrl}
+          alt={place.name}
+          className="w-full h-36 object-cover"
+        />
       )}
 
       <div className="p-4">

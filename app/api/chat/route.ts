@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { logSearch } from "@/lib/analytics";
-import { readPlacesDb, priceLevelFilter, syncPlaces, getPlacePhotos } from "@/lib/places-db";
+import { readPlacesDb, priceLevelFilter, syncPlaces } from "@/lib/places-db";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -100,24 +100,16 @@ ${candidateList}`;
 
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
 
-    // Resolve records first
-    const resolved = aiSelections.map((sel) =>
-      candidates.find((p) => p.name.toLowerCase() === sel.name.toLowerCase()) ??
-      candidates.find((p) => p.name.toLowerCase().includes(sel.name.toLowerCase().slice(0, 8)))
-    );
+    const recommendations = aiSelections.map((sel) => {
+      const record =
+        candidates.find((p) => p.name.toLowerCase() === sel.name.toLowerCase()) ??
+        candidates.find((p) =>
+          p.name.toLowerCase().includes(sel.name.toLowerCase().slice(0, 8))
+        );
 
-    // Batch photo fetch — one DB query for all place IDs
-    const validPlaceIds = resolved.filter(Boolean).map((r) => r!.placeId);
-    const photoMap = apiKey && validPlaceIds.length > 0
-      ? await getPlacePhotos(validPlaceIds, apiKey, 5)
-      : new Map<string, string[]>();
-
-    const recommendations = aiSelections.map((sel, i) => {
-      const record = resolved[i];
       if (!record) return null;
 
-      const photos = photoMap.get(record.placeId) ?? [];
-      const fallbackPhotoUrl =
+      const photoUrl =
         record.photoReference && apiKey
           ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${record.photoReference}&key=${apiKey}`
           : undefined;
@@ -134,8 +126,7 @@ ${candidateList}`;
         totalRatings: record.totalRatings,
         address: record.address,
         openNow: record.openNow,
-        photoUrl: photos[0] ?? fallbackPhotoUrl,
-        photoUrls: photos.length > 0 ? photos : undefined,
+        photoUrl,
         lat: record.lat,
         lng: record.lng,
         googleMapsUrl: record.placeId

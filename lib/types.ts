@@ -22,7 +22,6 @@ export interface Recommendation {
   address?: string;
   openNow?: boolean;
   photoUrl?: string;
-  photoUrls?: string[];
   googleMapsUrl?: string;
   lat?: number;
   lng?: number;
