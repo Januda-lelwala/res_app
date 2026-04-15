@@ -124,7 +124,7 @@ function recordToRow(r: PlaceRecord): PlaceRow {
 
 // ── DB helpers ───────────────────────────────────────────────────────────────
 
-const SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 function isStale(lastSynced: string | null): boolean {
   if (!lastSynced) return true;

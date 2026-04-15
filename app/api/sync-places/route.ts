@@ -12,6 +12,12 @@ export async function POST() {
     return NextResponse.json({ error: "GOOGLE_PLACES_API_KEY not set" }, { status: 500 });
   }
 
-  const result = await syncPlaces(apiKey);
-  return NextResponse.json({ success: true, ...result });
+  try {
+    const result = await syncPlaces(apiKey);
+    return NextResponse.json({ success: true, ...result });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Sync failed:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
