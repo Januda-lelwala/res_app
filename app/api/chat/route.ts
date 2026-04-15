@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { logSearch } from "@/lib/analytics";
 import { readPlacesDb, priceLevelFilter, syncPlaces } from "@/lib/places-db";
+import { getApprovedReviewsForPlaces } from "@/lib/reviews-db";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -55,11 +56,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ recommendations: [] });
     }
 
+    const reviewsEnabled = process.env.REVIEWS_IN_CONTEXT === "true";
+    const reviewMap = reviewsEnabled
+      ? await getApprovedReviewsForPlaces(candidates.map((p) => p.placeId))
+      : new Map();
+
     const candidateList = candidates
-      .map(
-        (p) =>
-          `- ${p.name} | ${p.category} | ${p.priceRange} | Rating: ${p.rating ?? "N/A"} (${p.totalRatings ?? 0} reviews) | ${p.openNow === false ? "Closed" : "Open"} | ${p.address ?? ""}`
-      )
+      .map((p) => {
+        const base = `- ${p.name} | ${p.category} | ${p.priceRange} | Rating: ${p.rating ?? "N/A"} (${p.totalRatings ?? 0} reviews) | ${p.openNow === false ? "Closed" : "Open"} | ${p.address ?? ""}`;
+        const notes = p.userDescription ? `Menu/Notes: ${p.userDescription}` : null;
+        const placeReviews = reviewMap.get(p.placeId) ?? [];
+        const reviewSummary =
+          placeReviews.length > 0
+            ? `User reviews (${placeReviews.length}): ${placeReviews
+                .slice(0, 3)
+                .map((r: { body: string; rating?: number }) => `"${r.body.slice(0, 150)}"${r.rating ? ` (${r.rating}/5)` : ""}`)
+                .join(" | ")}`
+            : null;
+        const extras = [notes, reviewSummary].filter(Boolean).join(" | ");
+        return extras ? `${base} | ${extras}` : base;
+      })
       .join("\n");
 
     const activeFilters = [
@@ -133,6 +149,7 @@ ${candidateList}`;
           googleMapsUrl: record.placeId
             ? `https://www.google.com/maps/place/?q=place_id:${record.placeId}`
             : undefined,
+          userDescription: record.userDescription,
         };
       })
     );

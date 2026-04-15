@@ -2,6 +2,7 @@
 
 import { Recommendation } from "@/lib/types";
 import { distanceKm, walkingMinutes } from "@/lib/utils";
+import ReviewsSection from "./ReviewsSection";
 
 interface UserLocation { lat: number; lng: number }
 
@@ -88,19 +89,29 @@ export default function PlaceCard({ place, onSelect, isSelected, userLocation }:
         <span>{place.priceRange}</span>
       </div>
 
-      {/* Maps link */}
-      {place.googleMapsUrl ? (
+      {/* Directions button */}
+      {place.googleMapsUrl && (
         <a
           href={place.googleMapsUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="block w-full text-center text-xs bg-ocean hover:bg-ocean/90 text-white py-2 rounded-xl font-semibold transition-colors"
+          className="block w-full text-center text-xs bg-ocean hover:bg-ocean/90 text-white py-2 rounded-xl font-semibold transition-colors mb-1"
         >
           Get directions →
         </a>
-      ) : (
-        <div className="h-8" />
+      )}
+
+      {/* Reviews + curator notes */}
+      {place.placeId && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ReviewsSection
+            placeId={place.placeId}
+            placeName={place.name}
+            initialReviews={place.approvedReviews ?? []}
+            userDescription={place.userDescription}
+          />
+        </div>
       )}
       </div>
     </div>

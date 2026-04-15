@@ -50,6 +50,7 @@ export interface PlaceRecord {
   types: string[];
   photoReference?: string;
   lastSynced: string;
+  userDescription?: string;
 }
 
 export interface PlacesDb {
@@ -74,6 +75,7 @@ interface PlaceRow {
   types: string[];
   photo_reference: string | null;
   last_synced: string;
+  user_description: string | null;
 }
 
 // ── Row ↔ Record mappers ─────────────────────────────────────────────────────
@@ -95,6 +97,7 @@ function rowToRecord(row: PlaceRow): PlaceRecord {
     types: row.types,
     photoReference: row.photo_reference ?? undefined,
     lastSynced: row.last_synced,
+    userDescription: row.user_description ?? undefined,
   };
 }
 
@@ -115,6 +118,7 @@ function recordToRow(r: PlaceRecord): PlaceRow {
     types: r.types,
     photo_reference: r.photoReference ?? null,
     last_synced: r.lastSynced,
+    user_description: r.userDescription ?? null,
   };
 }
 
@@ -218,6 +222,14 @@ export function mapGooglePlaceToRecord(p: Record<string, unknown>): PlaceRecord 
     photoReference: photos?.[0]?.photo_reference,
     lastSynced: new Date().toISOString(),
   };
+}
+
+export async function saveDescription(placeId: string, description: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("places")
+    .update({ user_description: description || null })
+    .eq("place_id", placeId);
+  if (error) throw new Error(`Failed to save description: ${error.message}`);
 }
 
 export async function syncPlaces(apiKey: string): Promise<{ count: number; lastSynced: string }> {

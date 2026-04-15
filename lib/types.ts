@@ -1,3 +1,27 @@
+export type ReviewStatus = "pending" | "approved" | "rejected" | "flagged";
+
+export interface PlaceReview {
+  id: string;
+  placeId: string;
+  reviewerName: string;
+  body: string;
+  rating?: number;
+  status: ReviewStatus;
+  aiVerdict?: "approve" | "reject" | "flag";
+  aiReason?: string;
+  aiConfidence?: number;
+  adminNote?: string;
+  createdAt: string;
+  moderatedAt?: string;
+  reviewedAt?: string;
+}
+
+export interface SubmitReviewPayload {
+  reviewerName: string;
+  body: string;
+  rating?: number;
+}
+
 export interface Recommendation {
   name: string;
   category: "Restaurant" | "Bar" | "Cafe" | "Street Food" | "Rooftop";
@@ -15,6 +39,8 @@ export interface Recommendation {
   googleMapsUrl?: string;
   lat?: number;
   lng?: number;
+  userDescription?: string;
+  approvedReviews?: PlaceReview[];
 }
 
 export interface FilterState {
