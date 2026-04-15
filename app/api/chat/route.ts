@@ -47,10 +47,10 @@ export async function POST(req: NextRequest) {
       candidates = candidates.filter((p) => !excludeSet.has(p.name.toLowerCase()));
     }
 
-    // Top 30 by rating as context for Claude
-    candidates = [...candidates]
-      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-      .slice(0, 30);
+    const messageLower = message.toLowerCase();
+
+    // Sort by rating so the best places appear first in context
+    candidates = [...candidates].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 
     if (candidates.length === 0) {
       return NextResponse.json({ recommendations: [] });
@@ -85,7 +85,17 @@ export async function POST(req: NextRequest) {
       .filter(Boolean)
       .join(", ");
 
-    const userMessage = `User request: ${message}${activeFilters ? `\nFilters: ${activeFilters}` : ""}
+    // Detect if the user's query directly matches a restaurant name so we can
+    // tell Claude explicitly — otherwise it treats the name as a vibe query.
+    const nameMatches = candidates.filter((p) =>
+      messageLower.includes(p.name.toLowerCase())
+    );
+    const nameHint =
+      nameMatches.length > 0
+        ? `\nNOTE: The user appears to be looking for a specific place named "${nameMatches.map((p) => p.name).join('", "')}". Make sure to include it in your results.`
+        : "";
+
+    const userMessage = `User request: ${message}${activeFilters ? `\nFilters: ${activeFilters}` : ""}${nameHint}
 
 Available places:
 ${candidateList}`;
