@@ -1,14 +1,4 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const session = cookies().get("admin_session")?.value;
-  const adminSecret = process.env.ADMIN_SECRET;
-
-  if (!adminSecret || session !== adminSecret) {
-    redirect("/admin/login");
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-ocean text-white px-6 py-4 flex items-center justify-between">
